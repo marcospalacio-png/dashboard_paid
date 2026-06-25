@@ -1,0 +1,43 @@
+name: Press Impact — Daily Ingest
+
+on:
+  schedule:
+    - cron: '0 8 * * *'  # 8am UTC = 5am ARG
+  workflow_dispatch:       # permite correrlo manualmente desde GitHub
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r press-impact/requirements.txt
+
+      - name: Write Google SA JSON
+        run: echo '${{ secrets.GOOGLE_SA_JSON }}' > /tmp/google-sa.json
+
+      - name: Write .env
+        run: |
+          cat <<EOF > press-impact/.env
+          SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY=${{ secrets.SUPABASE_KEY }}
+          TOKEN_ACESSO_HUBSPOT=${{ secrets.TOKEN_ACESSO_HUBSPOT }}
+          GOOGLE_SA_JSON=/tmp/google-sa.json
+          EOF
+
+      - name: Run leads ingest
+        run: python press-impact/ingest_leads.py
+
+      - name: Run GA4 ingest
+        run: python press-impact/ingest_ga4.py
+
+      - name: Run Search Console ingest
+        run: python press-impact/ingest_gsc.py
